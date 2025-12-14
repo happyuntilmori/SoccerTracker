@@ -53,7 +53,7 @@ try:
     API_KEY = st.secrets["api_key"]
 except Exception:
     # 로컬 테스트용 (Secrets가 없을 때만 작동)
-    API_KEY = "내_유료_키_숫자_테스트용"
+    API_KEY = "1234"
 BASE_URL = f"https://www.thesportsdb.com/api/v1/json/{API_KEY}"
 DEFAULT_SEASON = "2025-2026"
 CALENDAR_SEASON = "2025"
@@ -210,5 +210,6 @@ if selected:
                         st.json(t['raw_next'])
 
             st.success(f"✅ 업데이트 완료: {st.session_state.last_update}")
+
 
 

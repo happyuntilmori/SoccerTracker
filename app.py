@@ -51,9 +51,6 @@ st.markdown("""
 # 🔑 API 키 설정
 try:
     API_KEY = st.secrets["api_key"]
-except Exception:
-    API_KEY = "YOUR_PAID_API_KEY_HERE"
-
 BASE_URL = f"https://www.thesportsdb.com/api/v1/json/{API_KEY}"
 DEFAULT_SEASON = "2025-2026"
 CALENDAR_SEASON = "2025"
@@ -210,3 +207,4 @@ if selected:
                         st.json(t['raw_next'])
 
             st.success(f"✅ 업데이트 완료: {st.session_state.last_update}")
+

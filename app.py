@@ -25,12 +25,10 @@ st.markdown("""
     
     .league-tag { font-size: 0.7rem; color: #AAA !important; text-transform: uppercase; margin-bottom: 4px; }
     
-    /* SofaScore 링크 (터치 영역 확대) */
     a.sofascore-link { text-decoration: none !important; display: block; }
     
     .team-name { font-size: 1.4rem; font-weight: 800; color: #FFF !important; margin-bottom: 8px; display: flex; align-items: center; }
     
-    /* 아이콘 디자인 */
     .sofa-icon { 
         font-size: 0.7rem; background-color: #374df5; color: white !important; 
         padding: 3px 6px; border-radius: 4px; margin-left: 8px; font-weight: bold; 
@@ -50,16 +48,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 🔑 API 키 설정 (Streamlit Secrets 사용)
-# Streamlit 대시보드 Secrets에 'api_key'라는 이름으로 키를 저장해주세요.
+# 🔑 API 키 설정
 try:
     API_KEY = st.secrets["api_key"]
 except Exception:
-    # 로컬 테스트용 (Secrets 파일이 없을 경우) - 필요시 본인의 키 입력
     API_KEY = "YOUR_PAID_API_KEY_HERE"
 
 BASE_URL = f"https://www.thesportsdb.com/api/v1/json/{API_KEY}"
-
 DEFAULT_SEASON = "2025-2026"
 CALENDAR_SEASON = "2025"
 
@@ -67,39 +62,16 @@ CALENDAR_SEASON = "2025"
 # 📋 리그 리스트
 # ==========================================
 LEAGUES = {
-    "EPL (ENG)": "4328",
-    "La Liga (ESP)": "4335",
-    "Bundesliga (GER)": "4331",
-    "Serie A (ITA)": "4332",
-    "Ligue 1 (FRA)": "4334",
-    "Eredivisie (NED)": "4337",
-    "Primeira Liga (POR)": "4344",
-    "Super Lig (TUR)": "4339",
-    "Russian Premier": "4355",
-    "Superliga (DEN)": "4340",
-    "Eliteserien (NOR)": "4358",
-    "Scottish Prem": "4330",
-    "Championship (ENG)": "4329", 
-    "La Liga 2 (ESP)": "4361",
-    "2. Bundesliga (GER)": "4399",
-    "Serie B (ITA)": "4394",
-    "Ligue 2 (FRA)": "4401",
-    "UCL (Champions)": "4480",
-    "UEL (Europa)": "4481",
-    "UECL (Conf)": "4857",
-    "K League 1 (KOR)": "4689",
-    
-    # [수정됨] J1 League ID 업데이트: 4674 -> 4633
-    "J1 League (JPN)": "4633", 
-    "J2 League (JPN)": "4824",
-    
-    "Saudi Pro League": "4668",
-    "Indian Super League": "4791",
-    "A-League (AUS)": "4356",
-    "Brazil Serie A": "4351",
-    "Primera Argentina": "4406",
-    "MLS (USA)": "4346",
-    "Liga MX (MEX)": "4350",
+    "EPL (ENG)": "4328", "La Liga (ESP)": "4335", "Bundesliga (GER)": "4331",
+    "Serie A (ITA)": "4332", "Ligue 1 (FRA)": "4334", "Eredivisie (NED)": "4337",
+    "Primeira Liga (POR)": "4344", "Super Lig (TUR)": "4339", "Russian Premier": "4355",
+    "Superliga (DEN)": "4340", "Eliteserien (NOR)": "4358", "Scottish Prem": "4330",
+    "Championship (ENG)": "4329", "La Liga 2 (ESP)": "4361", "2. Bundesliga (GER)": "4399",
+    "Serie B (ITA)": "4394", "Ligue 2 (FRA)": "4401", "UCL (Champions)": "4480",
+    "UEL (Europa)": "4481", "UECL (Conf)": "4857", "K League 1 (KOR)": "4689",
+    "J1 League (JPN)": "4633", "J2 League (JPN)": "4824", "Saudi Pro League": "4668",
+    "Indian Super League": "4791", "A-League (AUS)": "4356", "Brazil Serie A": "4351",
+    "Primera Argentina": "4406", "MLS (USA)": "4346", "Liga MX (MEX)": "4350",
     "Concacaf Nations": "4866"
 }
 
@@ -113,38 +85,26 @@ def get_season_for_league(league_name):
     if league_name in CALENDAR_LEAGUES: return CALENDAR_SEASON
     return DEFAULT_SEASON
 
-# --- 🚀 재시도(Retry) 기능이 추가된 데이터 가져오기 ---
 async def fetch_url(session, url):
-    # 캐시 방지를 위해 무작위 파라미터 추가 (Cache Busting)
     nocache_url = f"{url}&t={int(time.time())}"
-    
-    # 봇 차단 방지용 헤더
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-
-    # 최대 3번 시도
+    headers = {"User-Agent": "Mozilla/5.0"}
     for attempt in range(3):
         try:
             async with session.get(nocache_url, headers=headers, timeout=10) as response:
                 if response.status == 200:
                     return await response.json()
-        except Exception as e:
-            # 실패 시 잠시 대기 후 재시도
-            if attempt < 2:
-                await asyncio.sleep(1)
-            else:
-                pass 
+        except:
+            if attempt < 2: await asyncio.sleep(1)
     return None
 
 async def process_team_data(session, team, league_name):
     t_id = team['idTeam']
+    # [디버그용] Raw 데이터를 함께 반환하도록 수정
     res_last, res_next = await asyncio.gather(
         fetch_url(session, f"{BASE_URL}/eventslast.php?id={t_id}"),
         fetch_url(session, f"{BASE_URL}/eventsnext.php?id={t_id}")
     )
     
-    # 지난 경기 처리
     raw = res_last.get('results', []) if res_last else []
     valid = [m for m in raw if m.get('dateEvent')]
     valid.sort(key=lambda x: x['dateEvent'])
@@ -163,27 +123,25 @@ async def process_team_data(session, team, league_name):
         outcomes.append(res)
         matches.append({"res": res, "date": m['dateEvent'][5:].replace("-", "/"), "opp": opp, "score": score, "is_latest": idx==len(recent_3)-1})
 
-    # 다음 경기
-    next_info = "🏁 시즌 종료 (Season Ended)"
+    next_info = "🏁 시즌 종료"
     if res_next and res_next.get('events'):
         ev = res_next['events'][0]
         n_opp = ev.get('strAwayTeam') if ev.get('idHomeTeam') == t_id else ev.get('strHomeTeam')
         next_info = f"📅 {ev.get('dateEvent','')[5:].replace('-', '/')} vs {n_opp}"
 
-    # 색상 로직
     status = "normal"
     if outcomes:
-        latest = outcomes[-1]
-        if latest == "W":
-            status = "normal"
-        else:
+        if outcomes[-1] != "W":
             status = "orange"
-            if len(outcomes) >= 2:
-                second_latest = outcomes[-2]
-                if second_latest != "W":
-                    status = "red"
+            if len(outcomes) >= 2 and outcomes[-2] != "W":
+                status = "red"
             
-    return {"league": league_name, "rank": team['intRank'], "name": team['strTeam'], "matches": matches, "next": next_info, "status": status}
+    # [디버그용] raw_last, raw_next 데이터를 리턴에 포함
+    return {
+        "league": league_name, "rank": team['intRank'], "name": team['strTeam'], 
+        "matches": matches, "next": next_info, "status": status,
+        "raw_last": res_last, "raw_next": res_next # 디버그 데이터
+    }
 
 async def fetch_all(leagues):
     async with aiohttp.ClientSession() as session:
@@ -203,11 +161,12 @@ with st.sidebar:
     st.header("설정")
     if 'last_update' not in st.session_state:
         st.session_state.last_update = datetime.now().strftime("%H:%M:%S")
-    
     st.caption(f"최근 업데이트: {st.session_state.last_update}")
     
-    selected = st.multiselect("리그 선택", list(LEAGUES.keys()), default=list(LEAGUES.keys()))
+    # 🔴 [새로운 기능] 디버그 모드 스위치
+    debug_mode = st.toggle("🔧 디버그 모드 (API 원본 확인)")
     
+    selected = st.multiselect("리그 선택", list(LEAGUES.keys()), default=list(LEAGUES.keys()))
     if st.button("🔄 데이터 강제 새로고침", type="primary"):
         st.cache_data.clear()
         st.session_state.last_update = datetime.now().strftime("%H:%M:%S")
@@ -218,7 +177,7 @@ if selected:
         data = asyncio.run(fetch_all(selected))
         
         if not data:
-            st.error("⚠️ 데이터를 가져오지 못했습니다. 잠시 후 '데이터 강제 새로고침'을 눌러주세요.")
+            st.error("⚠️ 데이터를 가져오지 못했습니다.")
         else:
             for t in data:
                 rows = ""
@@ -241,4 +200,13 @@ if selected:
                     {rows if rows else "<div class='match-row'>기록 없음</div>"}
                     <div class='next-row'><span class='next-tag'>NEXT</span> {t['next']}</div>
                 </div>""", unsafe_allow_html=True)
+
+                # 🔴 [디버그 출력] 스위치가 켜져 있을 때만 원본 데이터를 보여줌
+                if debug_mode:
+                    with st.expander(f"🕵️‍♂️ {t['name']} - API 원본 데이터 확인"):
+                        st.caption("API가 보낸 '지난 경기' 데이터:")
+                        st.json(t['raw_last'])
+                        st.caption("API가 보낸 '다음 경기' 데이터:")
+                        st.json(t['raw_next'])
+
             st.success(f"✅ 업데이트 완료: {st.session_state.last_update}")
